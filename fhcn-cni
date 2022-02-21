@@ -1,13 +1,67 @@
 #!/bin/bash
+
+# Log path
+log=/var/log/cni.log
+# Leer standard input
+config=`cat /dev/stdin`
+
+# Debug logs
+echo >> $log
+echo $(date) >> $log
+echo "COMMAND: $CNI_COMMAND" >> $log
+echo $(env) >> $log
+echo $config >> $log
+
 case $CNI_COMMAND in
 ADD)
+  podcidr=$(echo $config | jq -r ".podcidr")
+  podcidr_gw=$(echo $podcidr | sed "s:0/24:1:g")
+
+  ip="10.240.0.10"
+  mac="xx:xx:xx:xx:xx:xx"
+  address="${ip}/24"
+  interface_index=0
+
+  OUTPUT_TEMPLATE='
+  {
+    "cniVersion": "1.0.0",
+    "interfaces": [ 
+     {
+       "name": "%s",
+       "mac": "%s",
+       "sandbox": "%s"
+     }
+    ],
+    "ips": [
+      {
+        "version": "4",
+        "address": "%s",
+        "gateway": "%s",
+        "interface": %s 
+      }
+    ]
+  }'
+
+  OUTPUT=$(printf "$OUTPUT_TEMPLATE" $CNI_IFNAME $mac $CNI_NETNS $address $podcidr_gw $interface_index)
+
+  # Retornar el resultado al container runtime y escribir en el log
+  echo $OUTPUT | tee -a $log
 ;;
 DEL)
+  exit 0
 ;;
 CHECK)
+  exit 0
 ;;
 VERSION)
+  echo '
+  {
+    "cniVersion": "1.0.0",
+    "supportedVersions": [ "0.3.0", "0.3.1", "0.4.0","1.0.0" ]
+  }'
 ;;
 *)
+  echo "Unknown cni command: $CNI_COMMAND" | tee -a $log
+  exit 1
 ;;
 esac
