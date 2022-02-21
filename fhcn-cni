@@ -16,11 +16,45 @@ case $CNI_COMMAND in
 ADD)
   podcidr=$(echo $config | jq -r ".podcidr")
   podcidr_gw=$(echo $podcidr | sed "s:0/24:1:g")
+  
+  # Crear bridge
+  bridge=$(echo $config| jq -r ".bridge")
+  if [[ $(brctl show | grep ${bridge} | wc -c) -eq 0 ]]; then
+    brctl addbr ${bridge}
+    ip link set ${bridge} up
+    ip addr add ${podcidr_gw}/24 dev ${bridge}
+  fi
+    
+  # Calcular IP
+  if [ -f /tmp/last_allocated_ip ]; then
+      n=`cat /tmp/last_allocated_ip`
+  else
+      n=1
+  fi
+  n=$(($n+1))
+  ip=$(echo $podcidr | sed "s:0/24:$n:g")
+  echo $n > /tmp/last_allocated_ip
 
-  ip="10.240.0.10"
-  mac="xx:xx:xx:xx:xx:xx"
+  # Crear veth
+  host_ifname="veth$n"
+  ip link add $CNI_IFNAME type veth peer name $host_ifname
+  ip link set $host_ifname up
+  ip link set $host_ifname master $bridge
+
+  # Crear namespace
+  mkdir -p /var/run/netns/
+  ln -sfT $CNI_NETNS /var/run/netns/$CNI_CONTAINERID
+  ip link set $CNI_IFNAME netns $CNI_CONTAINERID
+
+  # Iniciar interfaz dentro del namespace y configurar
+  ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME up
+  ip netns exec $CNI_CONTAINERID ip addr add $ip/24 dev $CNI_IFNAME
+  ip netns exec $CNI_CONTAINERID ip route add default via $podcidr_gw
+
+  # Calcular valores necesarios
+  mac=$(ip netns exec $CNI_CONTAINERID ip link show eth0 | awk '/ether/ {print $2}')
   address="${ip}/24"
-  interface_index=0
+  interface_index=$(ip -netns $CNI_CONTAINERID link show $CNI_IFNAME |grep $CNI_IFNAME |awk -F ':' '{print$1}')
 
   OUTPUT_TEMPLATE='
   {
@@ -42,16 +76,31 @@ ADD)
     ]
   }'
 
-  OUTPUT=$(printf "$OUTPUT_TEMPLATE" $CNI_IFNAME $mac $CNI_NETNS $address $podcidr_gw $interface_index)
-
   # Retornar el resultado al container runtime y escribir en el log
+  OUTPUT=$(printf "$OUTPUT_TEMPLATE" $CNI_IFNAME $mac $CNI_NETNS $address $podcidr_gw $interface_index)  
   echo $OUTPUT | tee -a $log
 ;;
 DEL)
-  exit 0
+  # Obtener la interfaz de red
+  interface=veth$(echo $config | jq -r ".prevResult.ips[0].interface")
+  echo $interface >> $log
+
+  # Eliminar el namespace
+  ip netns del $CNI_CONTAINERID || true
+  rm -rf /var/run/netns/$CNI_CONTAINERID
+
+  # Eliminar la interfaz
+  ip link del $interface || true
 ;;
 CHECK)
-  exit 0
+  # Obtener la ip
+  address=$(echo $config | jq -r ".prevResult.ips[0].address")
+  ip=$(echo $address | sed "s:/24::g")
+  echo $ip >> $log
+
+  # Verificar la IP
+  ping $ip -c 1 >> $log
+  exit $?
 ;;
 VERSION)
   echo '
