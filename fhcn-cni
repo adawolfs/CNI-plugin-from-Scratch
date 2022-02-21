@@ -1,0 +1,13 @@
+#!/bin/bash
+case $CNI_COMMAND in
+ADD)
+;;
+DEL)
+;;
+CHECK)
+;;
+VERSION)
+;;
+*)
+;;
+esac
