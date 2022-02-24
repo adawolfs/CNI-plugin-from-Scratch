@@ -49,7 +49,7 @@ ADD)
   # Iniciar interfaz dentro del namespace y configurar
   ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME up
   ip netns exec $CNI_CONTAINERID ip addr add $ip/24 dev $CNI_IFNAME
-  ip netns exec $CNI_CONTAINERID ip route add default via $podcidr_gw
+  ip netns exec $CNI_CONTAINERID ip route add default via $podcidr_gw dev $CNI_IFNAME 
 
   # Calcular valores necesarios
   mac=$(ip netns exec $CNI_CONTAINERID ip link show eth0 | awk '/ether/ {print $2}')
