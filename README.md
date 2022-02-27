@@ -21,6 +21,16 @@ CRI-O es un container runtime que integra el concepto de CRI (container runtime 
 Kubeadm es una herramienta que permite la creacion de un cluster de Kubernetes.
 
 
+## Live en La Hora de Kubernetes
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/y16puleeXx0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+## Slides
+
+<iframe src="https://docs.google.com/presentation/d/e/2PACX-1vR8y1MCoRu1SOapIBKMVgNXhLK-XOGTDBEU-PbA9wIzkTICe5ibMsJVLgwvvYRcvZbXk4wpHrhw0-zZ/embed?start=true&loop=true&delayms=3000" frameborder="0" width="560" height="315" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+
+## 
 ## Referencias
 
 Esta demo hace uso del codigo y conceptos compartidos en:
